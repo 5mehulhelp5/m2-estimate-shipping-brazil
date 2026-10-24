@@ -10,6 +10,7 @@ const FLORIANOPOLIS = '88010-400';
 const SAO_PAULO = '01310-100';
 
 const price = (entry) => parseBRL(entry.price);
+const widget = (page) => page.locator('.simulate-container');
 
 test.describe('simple product', () => {
   const URL = '/joust-duffle-bag.html';
@@ -17,7 +18,7 @@ test.describe('simple product', () => {
   test('lists every carrier, not only the last one, with the right prices', async ({ page }) => {
     const errors = collectPageErrors(page);
     await openProduct(page, URL);
-    await shot(page, 'shipping-01-product-page-form');
+    await shot(page, 'shipping-01-product-page-form', widget(page));
 
     await estimate(page, FLORIANOPOLIS);
     const carriers = await readResults(page);
@@ -25,7 +26,7 @@ test.describe('simple product', () => {
     expect(Object.keys(carriers).sort()).toEqual(['Best Way', 'Flat Rate']);
     expect(price(carriers['Flat Rate'][0])).toBe(15);
     expect(price(carriers['Best Way'][0])).toBe(12.5); // postcode-specific table row
-    await shot(page, 'shipping-02-simple-all-carriers');
+    await shot(page, 'shipping-02-simple-all-carriers', widget(page));
     expect(errors).toEqual([]);
   });
 
@@ -59,7 +60,7 @@ test.describe('simple product', () => {
     await estimate(page, '123');
 
     await expect(results(page)).toContainText(/valid postcode|CEP válido/i);
-    await shot(page, 'shipping-03-invalid-postcode');
+    await shot(page, 'shipping-03-invalid-postcode', widget(page));
   });
 });
 
@@ -71,7 +72,7 @@ test.describe('configurable product', () => {
     await estimate(page, FLORIANOPOLIS);
 
     await expect(results(page)).toContainText(/option|opç|choose|escolh|specify/i);
-    await shot(page, 'shipping-04-configurable-without-option');
+    await shot(page, 'shipping-04-configurable-without-option', widget(page));
   });
 
   test('with the chosen option every carrier appears', async ({ page }) => {
@@ -81,7 +82,7 @@ test.describe('configurable product', () => {
 
     const carriers = await readResults(page);
     expect(Object.keys(carriers).sort()).toEqual(['Best Way', 'Flat Rate']);
-    await shot(page, 'shipping-05-configurable-all-carriers');
+    await shot(page, 'shipping-05-configurable-all-carriers', widget(page));
   });
 
   test('the cart weight is used: 6 items x 1 kg falls in the >= 5 kg table rate (R$ 35,00)', async ({ page }) => {
@@ -92,7 +93,7 @@ test.describe('configurable product', () => {
 
     const carriers = await readResults(page);
     expect(price(carriers['Best Way'][0])).toBe(35);
-    await shot(page, 'shipping-06-configurable-weight-rate');
+    await shot(page, 'shipping-06-configurable-weight-rate', widget(page));
   });
 });
 
@@ -104,7 +105,7 @@ test.describe('bundle product', () => {
 
     const carriers = await readResults(page);
     expect(Object.keys(carriers).sort()).toEqual(['Best Way', 'Flat Rate']);
-    await shot(page, 'shipping-07-bundle-all-carriers');
+    await shot(page, 'shipping-07-bundle-all-carriers', widget(page));
   });
 });
 

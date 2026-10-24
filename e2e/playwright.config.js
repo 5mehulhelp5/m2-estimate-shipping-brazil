@@ -16,7 +16,7 @@ export default defineConfig({
     baseURL: process.env.QA_BASE_URL ?? 'http://localhost',
     headless: true,
     locale: 'en-US', // the store is pt_BR: proves prices follow the store format, not the browser's
-    viewport: { width: 1280, height: 900 },
+    viewport: { width: 1280, height: 1300 },
     launchOptions: browser ? { executablePath: browser } : {},
   },
 });

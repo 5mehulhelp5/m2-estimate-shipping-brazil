@@ -2,7 +2,11 @@ import { expect } from '@playwright/test';
 
 /** Folder for screenshots: test-results/screenshots/<phase>/ ; phase is "before" or "after" the fixes. */
 export const PHASE = process.env.QA_PHASE ?? 'after';
-export const shot = (page, name) => page.screenshot({ path: `test-results/screenshots/${PHASE}/${name}.png` });
+/** Screenshot of the page, or of one element when `target` is given (so the result is not left below the fold). */
+export const shot = async (page, name, target = page) => {
+  await page.waitForTimeout(700); // let slide / fade animations finish, so the element is captured at its final size
+  return target.screenshot({ path: `test-results/screenshots/${PHASE}/${name}.png` });
+};
 
 /** "R$ 1.234,56" -> 1234.56 (pt_BR price format). */
 export const parseBRL = (text) => parseFloat(text.replace(/[^\d,]/g, '').replace(',', '.'));
