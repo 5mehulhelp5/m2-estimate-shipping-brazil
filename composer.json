@@ -1,22 +1,85 @@
 {
     "name": "fineweb/module-simulateproductshipping",
-    "description": "Simulates all Shipping methods on the product page.",
+    "description": "Magento 2 / Adobe Commerce module that estimates all shipping methods on the product page from a Brazilian postcode (CEP).",
     "type": "magento2-module",
-    "license": "GPL-3.0",
+    "license": "GPL-3.0-or-later",
+    "keywords": [
+        "magento2",
+        "adobe-commerce",
+        "shipping",
+        "cep",
+        "brazil",
+        "product-page"
+    ],
+    "homepage": "https://github.com/roneclay/m2-estimate-shipping-brazil",
     "authors": [
         {
-            "name": "Rone Clay Brasil",
-            "email": "roneclay@gmail.com"
+            "name": "Roni Clei Santos",
+            "homepage": "https://github.com/roneclay",
+            "role": "Developer"
         }
     ],
-    "minimum-stability": "dev",
-    "require": {},
+    "support": {
+        "issues": "https://github.com/roneclay/m2-estimate-shipping-brazil/issues",
+        "source": "https://github.com/roneclay/m2-estimate-shipping-brazil"
+    },
+    "require": {
+        "php": "~8.2.0||~8.3.0",
+        "magento/framework": "^103.0.7",
+        "magento/module-catalog": "^104.0.7",
+        "magento/module-quote": "^101.2.7",
+        "magento/module-store": "^101.1.7"
+    },
+    "require-dev": {
+        "bitexpert/phpstan-magento": "^0.32",
+        "magento/magento-coding-standard": "^38",
+        "phpstan/phpstan": "^1.12",
+        "phpunit/phpunit": "^10.5"
+    },
     "autoload": {
-        "psr-4": {
-            "Fineweb\\SimulateProductShipping\\": ""
-        },
         "files": [
             "registration.php"
+        ],
+        "psr-4": {
+            "Fineweb\\SimulateProductShipping\\": ""
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Fineweb\\SimulateProductShipping\\Test\\": "Test/"
+        }
+    },
+    "archive": {
+        "exclude": [
+            "/.github",
+            "/Test",
+            "/e2e",
+            "/docs",
+            "/phpunit.xml.dist",
+            "/phpstan.neon.dist",
+            "/phpcs.xml.dist"
+        ]
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "magento/composer-dependency-version-audit-plugin": true,
+            "magento/composer-root-update-plugin": true,
+            "magento/magento-composer-installer": true,
+            "mage-os/composer-dependency-version-audit-plugin": true,
+            "mage-os/composer-root-update-plugin": true,
+            "phpstan/extension-installer": true
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "phpcs": "phpcs",
+        "phpstan": "phpstan analyse --memory-limit=1G",
+        "check": [
+            "@phpcs",
+            "@phpstan",
+            "@test"
         ]
     }
 }
