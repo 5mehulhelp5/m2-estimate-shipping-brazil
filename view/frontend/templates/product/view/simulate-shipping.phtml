@@ -7,26 +7,34 @@
 
 declare(strict_types=1);
 
-use Fineweb\SimulateProductShipping\Block\Product\View;
+use Fineweb\SimulateProductShipping\ViewModel\ShippingForm;
 use Magento\Framework\Escaper;
+use Magento\Framework\View\Element\Template;
 
-/** @var View $block */
+/** @var Template $block */
 /** @var Escaper $escaper */
+/** @var ShippingForm $viewModel */
+
+$viewModel = $block->getData('view_model');
+$headingId = 'fineweb-shipping-estimate-heading-' . $block->getNameInLayout();
+$postcodeId = 'fineweb-shipping-estimate-postcode-' . $block->getNameInLayout();
 ?>
-<div class="simulate-container">
-    <div class="block block-shipping-simulate">
+<div class="fineweb-shipping-estimate" data-role="fineweb-shipping-estimate">
+    <div class="block fineweb-shipping-estimate__block">
         <div class="block-title">
-            <span
-                id="block-shipping-simulate-heading"
-                role="heading" aria-level="2">
+            <span class="fineweb-shipping-estimate__heading"
+                  id="<?= $escaper->escapeHtmlAttr($headingId) ?>"
+                  role="heading" aria-level="2">
                 <?= $escaper->escapeHtml(__('Calculate shipping')) ?>
             </span>
         </div>
-        <div class="block-content" aria-labelledby="block-shipping-simulate-heading">
-            <fieldset class="fieldset simulate" data-hasrequired="* Required Fields">
+        <div class="block-content" aria-labelledby="<?= $escaper->escapeHtmlAttr($headingId) ?>">
+            <fieldset class="fieldset fineweb-shipping-estimate__form" data-hasrequired="* Required Fields">
                 <div class="field note"><?= $escaper->escapeHtml(__('Enter the delivery zip code')) ?></div>
-                <div class="field postcode">
-                    <label class="label" for="postcode"><span><?= $escaper->escapeHtml(__('Postcode')) ?></span></label>
+                <div class="field fineweb-shipping-estimate__field">
+                    <label class="label" for="<?= $escaper->escapeHtmlAttr($postcodeId) ?>">
+                        <span><?= $escaper->escapeHtml(__('Postcode')) ?></span>
+                    </label>
                     <div class="control">
                         <input
                             name="simulate[postcode]"
@@ -34,9 +42,10 @@ use Magento\Framework\Escaper;
                             autocomplete="off"
                             inputmode="numeric"
                             maxlength="9"
-                            id="postcode"
+                            id="<?= $escaper->escapeHtmlAttr($postcodeId) ?>"
                             type="text"
-                            class="input-text"
+                            class="input-text fineweb-shipping-estimate__postcode"
+                            data-role="postcode"
                             title="<?= $escaper->escapeHtmlAttr(__('Postcode')) ?>"
                             placeholder="<?= $escaper->escapeHtmlAttr(__('Type your Postcode (just numbers)')) ?>">
                     </div>
@@ -45,14 +54,14 @@ use Magento\Framework\Escaper;
                     <div class="primary">
                         <button
                             type="button"
-                            class="action simulate primary"
-                            name="btn-simulate"
-                            id="btn-simulate"
+                            class="action primary fineweb-shipping-estimate__submit"
+                            data-action="estimate-shipping"
                             title="<?= $escaper->escapeHtmlAttr(__('Estimate shipping')) ?>">
                             <span><?= $escaper->escapeHtml(__('Estimate shipping')) ?></span>
                         </button>
                         <a
-                            href="<?= $escaper->escapeUrl($block->getBuscaCepUrl()) ?>"
+                            class="fineweb-shipping-estimate__lookup"
+                            href="<?= $escaper->escapeUrl($viewModel->getBuscaCepUrl()) ?>"
                             target="_blank"
                             rel="noopener noreferrer"
                             title="<?= $escaper->escapeHtmlAttr(__('I do not know the postcode')) ?>">
@@ -61,10 +70,10 @@ use Magento\Framework\Escaper;
                     </div>
                 </div>
             </fieldset>
-            <ul id="shipping-estimate-results" aria-live="polite"></ul>
+            <ul class="fineweb-shipping-estimate__results" data-role="estimate-results" aria-live="polite"></ul>
         </div>
     </div>
 </div>
 <script type="text/x-magento-init">
-    <?= /* @noEscape */ $block->getInitConfig() ?>
+    <?= /* @noEscape */ $viewModel->getInitConfig() ?>
 </script>

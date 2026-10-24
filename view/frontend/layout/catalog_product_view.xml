@@ -11,7 +11,15 @@
         <!-- Not product.info.form.content: form.phtml only prints that container for products without options,
              so the estimate never appeared on configurable and bundle products. -->
         <referenceContainer name="product.info.main">
-            <block class="Fineweb\SimulateProductShipping\Block\Product\View" name="product.info.shipping" as="shipping" template="Fineweb_SimulateProductShipping::product/view/simulate-shipping.phtml" after="product.info" />
+            <block name="product.info.shipping"
+                   as="shipping"
+                   class="Magento\Framework\View\Element\Template"
+                   template="Fineweb_SimulateProductShipping::product/view/simulate-shipping.phtml"
+                   after="product.info">
+                <arguments>
+                    <argument name="view_model" xsi:type="object">Fineweb\SimulateProductShipping\ViewModel\ShippingForm</argument>
+                </arguments>
+            </block>
         </referenceContainer>
     </body>
 </page>
