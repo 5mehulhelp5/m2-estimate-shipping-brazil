@@ -5,6 +5,69 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-10-24
+
+Quality release: what the shopper sees does not change (the end-to-end tests pass with the same hand-calculated values),
+but the module is now structured, tested and checked the way a Magento 2 module should be, and that changed its PHP classes and
+its markup: see **Breaking changes**.
+
+### Breaking changes
+
+This release changes PHP classes and the markup of the storefront. Nothing the shopper sees changes, but code and themes that
+touch the module have to follow.
+
+**PHP**
+
+- `Fineweb\SimulateProductShipping\Block\Product\View` was **removed** and replaced by the ViewModel
+  `Fineweb\SimulateProductShipping\ViewModel\ShippingForm`. The layout block is now a plain
+  `Magento\Framework\View\Element\Template` that receives the ViewModel as the `view_model` argument.
+
+  | 1.0.0 (block) | 2.0.0 (ViewModel) |
+  |---|---|
+  | `getActionUrl(): string` | `getInitConfig(): string` (the action URL is part of the `x-magento-init` payload) |
+  | `getBuscaCepUrl(): string` | `getBuscaCepUrl(): string` |
+  | `FINE_ACTION_URL`, `BUSCA_CEP_URL` | `ACTION_ROUTE`, `BUSCA_CEP_URL` |
+
+- The estimate logic moved out of `Controller\Simulate\Index` into `Model\ShippingEstimator`, behind the new
+  `Api\ShippingEstimatorInterface` (bound in `etc/di.xml`). The controller constructor is now
+  `(RequestInterface, ResultFactory, ShippingEstimatorInterface, LoggerInterface)`; plugins on the controller that relied on its
+  internals, and code that instantiates it, must target the service instead.
+
+**Storefront markup and scripts**
+
+- Fixed ids and generic classes were replaced by `data-*` hooks and BEM classes:
+  `.simulate-container` → `[data-role="fineweb-shipping-estimate"]`, `#postcode` → `[data-role="postcode"]`, `#btn-simulate` →
+  `[data-action="estimate-shipping"]`, `#shipping-estimate-results` → `[data-role="estimate-results"]`, and the result items are
+  `.fineweb-shipping-estimate__carrier` / `__method`. The `x-magento-init` selector is now
+  `[data-role="fineweb-shipping-estimate"]`. A theme that styled or scripted the old hooks must be updated.
+
+**Translations**
+
+- A shipping method is described with the phrases `%1 - %2` and `%1 - %2 - %3` instead of glued pieces. Translation overrides must use them.
+
+### Changed
+
+- The estimate logic moved from the controller into `Model/ShippingEstimator`, behind `Api/ShippingEstimatorInterface`
+  (bound in `etc/di.xml`). The controller only reads and validates the request, calls the service and returns the JSON.
+- The block that fed the template is a **ViewModel** passed as a layout argument.
+- A shipping method is described with the phrases `%1 - %2` and `%1 - %2 - %3` instead of glued pieces; the CSV files (an
+  `en_US.csv` was added) carry exactly the phrases the code uses.
+- The markup uses `data-role` / `data-action` hooks scoped to the widget element instead of fixed ids; CSS classes are BEM
+  (`fineweb-shipping-estimate__*`).
+
+### Added
+
+- CI jobs: blacklist, `composer validate --strict`, tests exist, multi-store scope, phpcs with warnings blocking, phpmd (Magento
+  rule set), phpstan level 9, PHPUnit with a 70% per-file coverage gate on PHP 8.2 and 8.3 and ESLint 10.
+- Local git hooks (`.githooks`, `setup-dev.sh`), the review guide (`.github/copilot-instructions.md`), a pull request
+  template and `CLAUDE.md`.
+- Unit tests for the service and the ViewModel (32 tests, 100% coverage of every file).
+
+### Fixed
+
+- The Composer package no longer carries the tests, the CI files and the tooling (`export-ignore`).
+- The "The product could not be loaded." message is translated.
+
 ## [1.0.0] - 2026-10-24
 
 First tagged release. It modernizes the module first published in 2020 for Magento 2.4.7+ and PHP 8.2/8.3.
@@ -47,4 +110,5 @@ First tagged release. It modernizes the module first published in 2020 for Magen
   that form instead of estimating.
 - The "I do not know the postcode" link used plain HTTP (it only worked through a redirect) and had no `rel="noopener"`.
 
+[2.0.0]: https://github.com/roni-clei-santos/m2-estimate-shipping-brazil/releases/tag/v2.0.0
 [1.0.0]: https://github.com/roni-clei-santos/m2-estimate-shipping-brazil/releases/tag/v1.0.0

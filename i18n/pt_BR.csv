@@ -7,3 +7,6 @@
 "I do not know the postcode","Não sei o meu CEP"
 "Please enter a valid postcode (8 digits).","Digite um CEP válido (8 números)."
 "We could not estimate shipping right now. Please try again.","Não foi possível calcular o frete agora. Tente novamente."
+"The product could not be loaded.","O produto não pôde ser carregado."
+"%1 - %2","%1 - %2"
+"%1 - %2 - %3","%1 - %2 - %3"

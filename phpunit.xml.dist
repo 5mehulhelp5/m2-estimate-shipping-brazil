@@ -13,8 +13,9 @@
     </testsuites>
     <source>
         <include>
-            <directory>Block</directory>
             <directory>Controller</directory>
+            <directory>Model</directory>
+            <directory>ViewModel</directory>
         </include>
     </source>
 </phpunit>

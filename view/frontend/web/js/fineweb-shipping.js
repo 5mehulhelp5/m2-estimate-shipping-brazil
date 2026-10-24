@@ -27,6 +27,25 @@ define([
     };
 
     /**
+     * Fill the %1, %2... placeholders of a (translated) phrase.
+     *
+     * @param {String} phrase
+     * @param {Array} values
+     * @returns {String}
+     */
+    const format = (phrase, values) => phrase.replace(/%(\d+)/g, (placeholder, index) => String(values[index - 1]));
+
+    /**
+     * Describe a shipping method: "Title - Price", followed by " - Message" when the carrier sent one.
+     *
+     * @param {Object} method
+     * @returns {String}
+     */
+    const describe = (method) => method.message ?
+        format($t('%1 - %2 - %3'), [method.title, method.price, method.message]) :
+        format($t('%1 - %2'), [method.title, method.price]);
+
+    /**
      * Fineweb_SimulateProductShipping widget: estimates the shipping methods for the product being viewed.
      *
      * @param {Object} config
@@ -35,9 +54,9 @@ define([
      */
     return function (config, element) {
         const $container = $(element),
-            $postcode = $container.find('input[name="simulate[postcode]"]'),
-            $button = $container.find('#btn-simulate'),
-            $results = $container.find('#shipping-estimate-results');
+            $postcode = $container.find('[data-role="postcode"]'),
+            $button = $container.find('[data-action="estimate-shipping"]'),
+            $results = $container.find('[data-role="estimate-results"]');
 
         /**
          * Replace the results with a single message.
@@ -45,7 +64,9 @@ define([
          * @param {String} message
          */
         const showError = (message) => {
-            $results.empty().append($('<li class="message error"></li>').text(message)).slideDown();
+            $results.empty().append(
+                $('<li></li>').addClass('message error fineweb-shipping-estimate__error').text(message)
+            ).slideDown();
         };
 
         /**
@@ -57,22 +78,20 @@ define([
             $results.empty();
 
             $.each(carriers, (carrierTitle, methods) => {
-                const $methods = $('<ul></ul>');
+                const $methods = $('<ul></ul>').addClass('fineweb-shipping-estimate__methods');
 
                 $.each(methods, (index, method) => {
-                    const $item = $('<li></li>')
-                        .append($('<span class="label"></span>').text(method.title + ' - '))
-                        .append(document.createTextNode(method.price));
-
-                    if (method.message) {
-                        $item.append(document.createTextNode(' - ' + method.message));
-                    }
-
-                    $methods.append($item);
+                    $methods.append(
+                        $('<li></li>').addClass('fineweb-shipping-estimate__method').text(describe(method))
+                    );
                 });
 
+                const $title = $('<span></span>')
+                    .addClass('fineweb-shipping-estimate__carrier-title')
+                    .text(carrierTitle);
+
                 $results.append(
-                    $('<li></li>').append($('<span class="title"></span>').text(carrierTitle)).append($methods)
+                    $('<li></li>').addClass('fineweb-shipping-estimate__carrier').append($title).append($methods)
                 );
             });
 
@@ -124,7 +143,7 @@ define([
             $(this).val(maskPostcode($(this).val()));
         });
 
-        // The field lives inside the add-to-cart form: Enter must estimate shipping, not add the product
+        // The field may sit inside the add-to-cart form: Enter must estimate shipping, not add the product
         $postcode.on('keydown', function (event) {
             if (event.key === 'Enter') {
                 event.preventDefault();

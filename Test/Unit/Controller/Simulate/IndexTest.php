@@ -23,21 +23,13 @@ declare(strict_types=1);
 
 namespace Fineweb\SimulateProductShipping\Test\Unit\Controller\Simulate;
 
+use Fineweb\SimulateProductShipping\Api\ShippingEstimatorInterface;
 use Fineweb\SimulateProductShipping\Controller\Simulate\Index;
-use Magento\Catalog\Api\ProductRepositoryInterface;
-use Magento\Catalog\Model\Product;
+use Magento\Framework\App\Action\HttpPostActionInterface;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\Controller\Result\Json;
 use Magento\Framework\Controller\ResultFactory;
-use Magento\Framework\DataObject;
 use Magento\Framework\Exception\NoSuchEntityException;
-use Magento\Framework\Pricing\PriceCurrencyInterface;
-use Magento\Quote\Model\Quote;
-use Magento\Quote\Model\Quote\Address;
-use Magento\Quote\Model\Quote\TotalsCollector;
-use Magento\Quote\Model\QuoteFactory;
-use Magento\Store\Api\Data\StoreInterface;
-use Magento\Store\Model\StoreManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -57,24 +49,9 @@ class IndexTest extends TestCase
     private array $response = ['data' => null, 'code' => 200];
 
     /**
-     * @var ProductRepositoryInterface&MockObject
+     * @var ShippingEstimatorInterface&MockObject
      */
-    private ProductRepositoryInterface $productRepository;
-
-    /**
-     * @var Quote&MockObject
-     */
-    private Quote $quote;
-
-    /**
-     * @var Address&MockObject
-     */
-    private Address $address;
-
-    /**
-     * @var TotalsCollector&MockObject
-     */
-    private TotalsCollector $totalsCollector;
+    private ShippingEstimatorInterface $estimator;
 
     /**
      * @var LoggerInterface&MockObject
@@ -113,60 +90,15 @@ class IndexTest extends TestCase
         $resultFactory = $this->createMock(ResultFactory::class);
         $resultFactory->method('create')->with(ResultFactory::TYPE_JSON)->willReturn($json);
 
-        $store = $this->createMock(StoreInterface::class);
-        $store->method('getId')->willReturn(1);
-        $storeManager = $this->createMock(StoreManagerInterface::class);
-        $storeManager->method('getStore')->willReturn($store);
-
-        $this->productRepository = $this->createMock(ProductRepositoryInterface::class);
-
-        $this->address = $this->getMockBuilder(Address::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['getGroupedAllShippingRates'])
-            ->getMock();
-        $this->quote = $this->getMockBuilder(Quote::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['addProduct', 'getShippingAddress', 'setStoreId'])
-            ->getMock();
-        $this->quote->method('getShippingAddress')->willReturn($this->address);
-        $quoteFactory = $this->createMock(QuoteFactory::class);
-        $quoteFactory->method('create')->willReturn($this->quote);
-
-        $this->totalsCollector = $this->createMock(TotalsCollector::class);
-
-        $priceCurrency = $this->createMock(PriceCurrencyInterface::class);
-        $priceCurrency->method('convertAndFormat')->willReturnCallback(
-            static fn (float $amount): string => 'R$ ' . number_format($amount, 2, ',', '.')
-        );
-
+        $this->estimator = $this->createMock(ShippingEstimatorInterface::class);
         $this->logger = $this->createMock(LoggerInterface::class);
 
-        $this->controller = new Index(
-            $request,
-            $resultFactory,
-            $this->productRepository,
-            $quoteFactory,
-            $this->totalsCollector,
-            $storeManager,
-            $priceCurrency,
-            $this->logger
-        );
+        $this->controller = new Index($request, $resultFactory, $this->estimator, $this->logger);
     }
 
-    /**
-     * @param array<string, array<int, array<string, mixed>>> $groupedRates
-     */
-    private function givenShippingRates(array $groupedRates): void
+    public function testHandlesPostRequestsOnly(): void
     {
-        $grouped = [];
-        foreach ($groupedRates as $code => $rates) {
-            foreach ($rates as $rate) {
-                $grouped[$code][] = new DataObject($rate);
-            }
-        }
-        $this->address->method('getGroupedAllShippingRates')->willReturn($grouped);
-        $this->productRepository->method('getById')->willReturn($this->createMock(Product::class));
-        $this->quote->method('addProduct')->willReturn(new DataObject());
+        self::assertInstanceOf(HttpPostActionInterface::class, $this->controller);
     }
 
     /**
@@ -179,6 +111,7 @@ class IndexTest extends TestCase
             'too short' => [['postcode' => '8801']],
             'too long' => [['postcode' => '880104000']],
             'letters' => [['postcode' => 'abcdefgh']],
+            'not a string' => [['postcode' => ['88010400']]],
             'not an array' => ['88010400'],
         ];
     }
@@ -187,7 +120,7 @@ class IndexTest extends TestCase
     public function testRejectsAnInvalidPostcodeWithAReadableError(mixed $simulate): void
     {
         $this->params['simulate'] = $simulate;
-        $this->productRepository->expects(self::never())->method('getById');
+        $this->estimator->expects(self::never())->method('estimate');
 
         $this->controller->execute();
 
@@ -198,53 +131,38 @@ class IndexTest extends TestCase
         );
     }
 
-    public function testGroupsEveryCarrierInsteadOfOnlyTheLastOne(): void
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function validPostcodeProvider(): array
     {
-        $this->givenShippingRates([
-            'flatrate' => [
-                ['carrier_title' => 'Flat Rate', 'method_title' => 'Fixed', 'price' => 5, 'error_message' => null],
-            ],
-            'tablerate' => [
-                ['carrier_title' => 'Best Way', 'method_title' => 'Table Rate', 'price' => 1234.56,
-                    'error_message' => null],
-                ['carrier_title' => 'Best Way', 'method_title' => 'Express', 'price' => 99,
-                    'error_message' => 'Slow'],
-            ],
-        ]);
+        return ['with a hyphen' => ['88010-400'], 'digits only' => ['88010400'], 'with spaces' => [' 88010 400 ']];
+    }
+
+    #[DataProvider('validPostcodeProvider')]
+    public function testAcceptsThePostcodeInAnyFormatAndPassesOnlyItsDigits(string $postcode): void
+    {
+        $this->params['simulate'] = ['postcode' => $postcode];
+        $this->estimator->expects(self::once())
+            ->method('estimate')
+            ->with(42, self::anything(), '88010400')
+            ->willReturn([]);
+
+        $this->controller->execute();
+    }
+
+    public function testAnswersTheEstimateGroupedByCarrier(): void
+    {
+        $rates = ['Flat Rate' => [['title' => 'Fixed', 'price' => 'R$ 15,00', 'message' => '']]];
+        $this->estimator->method('estimate')->willReturn($rates);
 
         $this->controller->execute();
 
         self::assertSame(200, $this->response['code']);
-        self::assertSame([
-            'Flat Rate' => [
-                ['title' => 'Fixed', 'price' => 'R$ 5,00', 'message' => ''],
-            ],
-            'Best Way' => [
-                ['title' => 'Table Rate', 'price' => 'R$ 1.234,56', 'message' => ''],
-                ['title' => 'Express', 'price' => 'R$ 99,00', 'message' => 'Slow'],
-            ],
-        ], $this->response['data']);
+        self::assertSame($rates, $this->response['data']);
     }
 
-    public function testEstimatesForBrazilWithTheDigitsOfThePostcodeAndCollectsTotals(): void
-    {
-        $this->givenShippingRates([
-            'flatrate' => [
-                ['carrier_title' => 'Flat Rate', 'method_title' => 'Fixed', 'price' => 5, 'error_message' => null],
-            ],
-        ]);
-        $this->totalsCollector->expects(self::once())
-            ->method('collectAddressTotals')
-            ->with($this->quote, $this->address);
-
-        $this->controller->execute();
-
-        self::assertSame('BR', $this->address->getCountryId());
-        self::assertSame('88010400', $this->address->getPostcode());
-        self::assertTrue($this->address->getCollectShippingRates());
-    }
-
-    public function testForwardsTheQuantityAndTheChosenOptionsToTheQuote(): void
+    public function testForwardsTheQuantityAndTheChosenOptionsAndNothingElse(): void
     {
         $this->params += [
             'super_attribute' => ['93' => '52'],
@@ -252,22 +170,16 @@ class IndexTest extends TestCase
             'bundle_option_qty' => ['1' => '2'],
             'unrelated' => 'ignored',
         ];
-        $this->address->method('getGroupedAllShippingRates')->willReturn([]);
-        $this->productRepository->method('getById')
-            ->with(42, false, 1)
-            ->willReturn($this->createMock(Product::class));
-        $this->quote->expects(self::once())->method('addProduct')->with(
-            self::isInstanceOf(Product::class),
-            self::callback(static function (DataObject $buyRequest): bool {
-                return $buyRequest->getData() === [
-                    'product' => 42,
-                    'qty' => 2.0,
-                    'super_attribute' => ['93' => '52'],
-                    'bundle_option' => ['1' => '3'],
-                    'bundle_option_qty' => ['1' => '2'],
-                ];
-            })
-        )->willReturn(new DataObject());
+        $this->estimator->expects(self::once())->method('estimate')->with(
+            42,
+            [
+                'qty' => 2.0,
+                'super_attribute' => ['93' => '52'],
+                'bundle_option' => ['1' => '3'],
+                'bundle_option_qty' => ['1' => '2'],
+            ],
+            '88010400'
+        )->willReturn([]);
 
         $this->controller->execute();
     }
@@ -288,45 +200,41 @@ class IndexTest extends TestCase
     public function testFallsBackToOneWhenTheQuantityIsInvalid(mixed $qty): void
     {
         $this->params['qty'] = $qty;
-        $this->address->method('getGroupedAllShippingRates')->willReturn([]);
-        $this->productRepository->method('getById')->willReturn($this->createMock(Product::class));
-        $this->quote->expects(self::once())->method('addProduct')->with(
-            self::anything(),
-            self::callback(static fn (DataObject $buyRequest): bool => $buyRequest->getData('qty') === 1.0)
-        )->willReturn(new DataObject());
+        $this->estimator->expects(self::once())
+            ->method('estimate')
+            ->with(42, ['qty' => 1.0], '88010400')
+            ->willReturn([]);
+
+        $this->controller->execute();
+    }
+
+    public function testUsesProductZeroWhenTheIdIsNotNumeric(): void
+    {
+        $this->params['product'] = 'abc';
+        $this->estimator->expects(self::once())
+            ->method('estimate')
+            ->with(0, self::anything(), '88010400')
+            ->willReturn([]);
 
         $this->controller->execute();
     }
 
     public function testReportsWhenNoShippingMethodIsAvailable(): void
     {
-        $this->givenShippingRates([]);
+        $this->estimator->method('estimate')->willReturn([]);
 
         $this->controller->execute();
 
+        self::assertSame(200, $this->response['code']);
         self::assertSame(
             ['error' => ['message' => 'There is no shipping method available at this time.']],
             $this->response['data']
         );
     }
 
-    public function testReportsTheReasonWhenTheProductCannotBeAddedToTheQuote(): void
+    public function testReportsTheReasonOfALocalizedFailure(): void
     {
-        $this->productRepository->method('getById')->willReturn($this->createMock(Product::class));
-        $this->quote->method('addProduct')->willReturn('Please specify the product\'s option(s).');
-
-        $this->controller->execute();
-
-        self::assertSame(400, $this->response['code']);
-        self::assertSame(
-            ['error' => ['message' => 'Please specify the product\'s option(s).']],
-            $this->response['data']
-        );
-    }
-
-    public function testReportsAMissingProduct(): void
-    {
-        $this->productRepository->method('getById')->willThrowException(
+        $this->estimator->method('estimate')->willThrowException(
             new NoSuchEntityException(__('The product that was requested doesn\'t exist.'))
         );
 
@@ -342,7 +250,7 @@ class IndexTest extends TestCase
     public function testLogsUnexpectedFailuresWithoutLeakingTheirMessage(): void
     {
         $failure = new RuntimeException('SQLSTATE[HY000]: connection refused');
-        $this->productRepository->method('getById')->willThrowException($failure);
+        $this->estimator->method('estimate')->willThrowException($failure);
         $this->logger->expects(self::once())->method('critical')->with($failure);
 
         $this->controller->execute();

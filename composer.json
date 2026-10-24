@@ -33,6 +33,7 @@
     "require-dev": {
         "bitexpert/phpstan-magento": "^0.32",
         "magento/magento-coding-standard": "^38",
+        "phpmd/phpmd": "^2.15",
         "phpstan/phpstan": "^1.12",
         "phpunit/phpunit": "^10.5"
     },
@@ -46,7 +47,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Fineweb\\SimulateProductShipping\\Test\\": "Test/"
+            "Fineweb\\SimulateProductShipping\\Test\\": "Test/",
+            "Magento\\CodeMessDetector\\": "dev/phpmd/CodeMessDetector/"
         }
     },
     "archive": {
@@ -57,7 +59,13 @@
             "/docs",
             "/phpunit.xml.dist",
             "/phpstan.neon.dist",
-            "/phpcs.xml.dist"
+            "/phpcs.xml.dist",
+            "/dev",
+            "/.githooks",
+            "/CLAUDE.md",
+            "/eslint.config.mjs",
+            "/package.json",
+            "/package-lock.json"
         ]
     },
     "config": {
@@ -74,12 +82,26 @@
     },
     "scripts": {
         "test": "phpunit",
+        "coverage": [
+            "@php -d xdebug.mode=coverage vendor/bin/phpunit --coverage-clover build/clover.xml",
+            "@php dev/ci/check-coverage.php build/clover.xml 70"
+        ],
         "phpcs": "phpcs",
+        "phpmd": "phpmd Api,Controller,Model,ViewModel text dev/phpmd/ruleset.xml",
         "phpstan": "phpstan analyse --memory-limit=1G",
+        "blacklist": "@php dev/ci/blacklist.php",
+        "check-tests-exist": "@php dev/ci/check-tests-exist.php",
+        "check-scope": "@php dev/ci/check-scope-config.php",
         "check": [
+            "@blacklist",
             "@phpcs",
+            "@phpmd",
+            "@phpcpd",
             "@phpstan",
-            "@test"
-        ]
+            "@check-tests-exist",
+            "@check-scope",
+            "@coverage"
+        ],
+        "phpcpd": "bash dev/ci/phpcpd.sh Api Controller Model ViewModel"
     }
 }

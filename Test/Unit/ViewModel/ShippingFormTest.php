@@ -21,20 +21,20 @@
 
 declare(strict_types=1);
 
-namespace Fineweb\SimulateProductShipping\Test\Unit\Block\Product;
+namespace Fineweb\SimulateProductShipping\Test\Unit\ViewModel;
 
-use Fineweb\SimulateProductShipping\Block\Product\View;
+use Fineweb\SimulateProductShipping\ViewModel\ShippingForm;
 use Magento\Framework\Serialize\Serializer\JsonHexTag;
 use Magento\Framework\UrlInterface;
-use Magento\Framework\View\Element\Template\Context;
+use Magento\Framework\View\Element\Block\ArgumentInterface;
 use PHPUnit\Framework\TestCase;
 
-class ViewTest extends TestCase
+class ShippingFormTest extends TestCase
 {
     /**
-     * @var View
+     * @var ShippingForm
      */
-    private View $block;
+    private ShippingForm $viewModel;
 
     protected function setUp(): void
     {
@@ -42,24 +42,27 @@ class ViewTest extends TestCase
         $urlBuilder->method('getUrl')->willReturnCallback(
             static fn (string $route): string => 'https://shop.test/' . $route . '/'
         );
-        $context = $this->createMock(Context::class);
-        $context->method('getUrlBuilder')->willReturn($urlBuilder);
 
-        $this->block = new View($context, new JsonHexTag());
+        $this->viewModel = new ShippingForm($urlBuilder, new JsonHexTag());
+    }
+
+    public function testIsAViewModel(): void
+    {
+        self::assertInstanceOf(ArgumentInterface::class, $this->viewModel);
     }
 
     public function testPostcodeLookupLinkIsSecure(): void
     {
-        self::assertStringStartsWith('https://', $this->block->getBuscaCepUrl());
+        self::assertStringStartsWith('https://', $this->viewModel->getBuscaCepUrl());
     }
 
     public function testInitConfigPointsTheWidgetAtTheEstimateController(): void
     {
-        $config = json_decode($this->block->getInitConfig(), true);
+        $config = json_decode($this->viewModel->getInitConfig(), true);
 
         self::assertSame(
             [
-                '.simulate-container' => [
+                '[data-role="fineweb-shipping-estimate"]' => [
                     'Fineweb_SimulateProductShipping/js/fineweb-shipping' => [
                         'actionUrl' => 'https://shop.test/fineweb/simulate/index/',
                     ],
@@ -71,6 +74,6 @@ class ViewTest extends TestCase
 
     public function testInitConfigCannotCloseTheScriptTag(): void
     {
-        self::assertStringNotContainsString('<', $this->block->getInitConfig());
+        self::assertStringNotContainsString('<', $this->viewModel->getInitConfig());
     }
 }

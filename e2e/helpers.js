@@ -11,27 +11,48 @@ export const shot = async (page, name, target = page) => {
 /** "R$ 1.234,56" -> 1234.56 (pt_BR price format). */
 export const parseBRL = (text) => parseFloat(text.replace(/[^\d,]/g, '').replace(',', '.'));
 
+/**
+ * Magento's own Braintree module logs a console.error on every product page of a store where it is not configured. It is
+ * not one of ours, so its errors are left out; any other script error fails the test.
+ */
+const THIRD_PARTY_SCRIPTS = [/\/PayPal_Braintree\//];
+
+/**
+ * Every JavaScript problem of the page: uncaught exceptions, console.error calls, and the warning Magento prints when a
+ * module depends on the whole jquery/ui bundle (it falls back to a slow compatibility layer). Network failures ("Failed to
+ * load resource", for example a sample-data image) are not script errors and are left out.
+ */
 export function collectPageErrors(page) {
   const errors = [];
-  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
+  page.on('console', (message) => {
+    const text = message.text();
+    const thirdParty = THIRD_PARTY_SCRIPTS.some((pattern) => pattern.test(message.location().url));
+    if (message.type() === 'error' && !/Failed to load resource/.test(text) && !thirdParty) {
+      errors.push(`console.error: ${text}`);
+    }
+    if (message.type() === 'warning' && /Fallback to JQueryUI Compat/.test(text)) {
+      errors.push(`console.warning: ${text}`);
+    }
+  });
   return errors;
 }
 
 /** Open a product page and wait until the shipping widget script is running (the button is server-rendered). */
 export async function openProduct(page, url) {
   await page.goto(url);
-  await expect(page.locator('.simulate-container')).toBeVisible();
+  await expect(page.locator('[data-role="fineweb-shipping-estimate"]')).toBeVisible();
   await page.waitForFunction(() => window.require?.defined?.('Fineweb_SimulateProductShipping/js/fineweb-shipping'));
 }
 
-export const postcodeInput = (page) => page.locator('input[name="simulate[postcode]"]');
-export const results = (page) => page.locator('#shipping-estimate-results');
+export const postcodeInput = (page) => page.locator('[data-role="postcode"]');
+export const results = (page) => page.locator('[data-role="estimate-results"]');
 
 /** Type a postcode and click "Estimate shipping". */
 export async function estimate(page, postcode) {
   await postcodeInput(page).fill('');
   await postcodeInput(page).pressSequentially(postcode);
-  await page.locator('#btn-simulate').click();
+  await page.locator('[data-action="estimate-shipping"]').click();
 }
 
 /**
@@ -40,11 +61,11 @@ export async function estimate(page, postcode) {
  */
 export async function readResults(page) {
   await expect(results(page).locator('li').first()).toBeVisible();
-  return page.$$eval('#shipping-estimate-results > li', (carriers) =>
+  return page.$$eval('[data-role="estimate-results"] > li', (carriers) =>
     Object.fromEntries(
       carriers.map((carrier) => [
-        carrier.querySelector('.title')?.textContent.trim() ?? carrier.textContent.trim(),
-        [...carrier.querySelectorAll('ul > li')].map((method) => {
+        carrier.querySelector('.fineweb-shipping-estimate__carrier-title')?.textContent.trim() ?? carrier.textContent.trim(),
+        [...carrier.querySelectorAll('.fineweb-shipping-estimate__method')].map((method) => {
           const [label, ...rest] = method.textContent.split(' - ');
           return { label: label.trim(), price: rest.join(' - ').trim() };
         }),

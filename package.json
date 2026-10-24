@@ -1,0 +1,13 @@
+{
+    "name": "fineweb-simulate-product-shipping-tooling",
+    "private": true,
+    "description": "Development tooling of the module (ESLint). The module itself is installed with Composer.",
+    "license": "GPL-3.0-or-later",
+    "scripts": {
+        "lint": "eslint --max-warnings 0 view"
+    },
+    "devDependencies": {
+        "eslint": "^10.13.0",
+        "globals": "^17.0.0"
+    }
+}

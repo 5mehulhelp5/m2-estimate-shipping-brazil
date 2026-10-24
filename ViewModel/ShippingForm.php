@@ -21,40 +21,28 @@
 
 declare(strict_types=1);
 
-namespace Fineweb\SimulateProductShipping\Block\Product;
+namespace Fineweb\SimulateProductShipping\ViewModel;
 
 use Magento\Framework\Serialize\Serializer\JsonHexTag;
-use Magento\Framework\View\Element\Template;
+use Magento\Framework\UrlInterface;
+use Magento\Framework\View\Element\Block\ArgumentInterface;
 
 /**
- * Block that renders the postcode form used to estimate shipping on the product page.
+ * Data of the postcode form used to estimate shipping on the product page.
  */
-class View extends Template
+class ShippingForm implements ArgumentInterface
 {
-    public const FINE_ACTION_URL = 'fineweb/simulate/index';
+    public const ACTION_ROUTE = 'fineweb/simulate/index';
     public const BUSCA_CEP_URL = 'https://buscacepinter.correios.com.br/app/endereco/index.php';
 
     /**
-     * @param Template\Context $context
+     * @param UrlInterface $urlBuilder
      * @param JsonHexTag $jsonHexTag
-     * @param mixed[] $data
      */
     public function __construct(
-        Template\Context $context,
-        private readonly JsonHexTag $jsonHexTag,
-        array $data = []
+        private readonly UrlInterface $urlBuilder,
+        private readonly JsonHexTag $jsonHexTag
     ) {
-        parent::__construct($context, $data);
-    }
-
-    /**
-     * Get the controller route that calculates the estimate (relative to the store base URL)
-     *
-     * @return string
-     */
-    public function getActionUrl(): string
-    {
-        return self::FINE_ACTION_URL;
     }
 
     /**
@@ -75,9 +63,9 @@ class View extends Template
     public function getInitConfig(): string
     {
         return (string) $this->jsonHexTag->serialize([
-            '.simulate-container' => [
+            '[data-role="fineweb-shipping-estimate"]' => [
                 'Fineweb_SimulateProductShipping/js/fineweb-shipping' => [
-                    'actionUrl' => $this->getUrl($this->getActionUrl()),
+                    'actionUrl' => $this->urlBuilder->getUrl(self::ACTION_ROUTE),
                 ],
             ],
         ]);
