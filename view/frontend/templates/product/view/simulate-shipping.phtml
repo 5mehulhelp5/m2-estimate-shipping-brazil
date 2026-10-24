@@ -4,6 +4,14 @@
  * @copyright   Copyright (C) 2020  Copyright (c) 2020 Fineweb (https://www.fineweb.com.br)
  * @author      Rone Clay Brasil <roneclay@gmail.com>
  */
+
+declare(strict_types=1);
+
+use Fineweb\SimulateProductShipping\Block\Product\View;
+use Magento\Framework\Escaper;
+
+/** @var View $block */
+/** @var Escaper $escaper */
 ?>
 <div class="simulate-container">
     <div class="block block-shipping-simulate">
@@ -11,24 +19,26 @@
             <span
                 id="block-shipping-simulate-heading"
                 role="heading" aria-level="2">
-                <?= /* @noEscape */ __('Calculate shipping'); ?>        
+                <?= $escaper->escapeHtml(__('Calculate shipping')) ?>
             </span>
         </div>
         <div class="block-content" aria-labelledby="block-shipping-simulate-heading">
             <fieldset class="fieldset simulate" data-hasrequired="* Required Fields">
-                <div class="field note"><?= /* @noEscape */ __('Enter the delivery zip code') ?></div>
+                <div class="field note"><?= $escaper->escapeHtml(__('Enter the delivery zip code')) ?></div>
                 <div class="field postcode">
-                    <label class="label" for="postcode"><span><?= /* @noEscape */ __('Postcode') ?></span></label>
+                    <label class="label" for="postcode"><span><?= $escaper->escapeHtml(__('Postcode')) ?></span></label>
                     <div class="control">
                         <input
                             name="simulate[postcode]"
                             value=""
                             autocomplete="off"
+                            inputmode="numeric"
+                            maxlength="9"
                             id="postcode"
                             type="text"
                             class="input-text"
-                            title="<?= /* @noEscape */ __('Postcode') ?>"
-                            placeholder="<?= /* @noEscape */ __('Type your Postcode (just numbers)') ?>">
+                            title="<?= $escaper->escapeHtmlAttr(__('Postcode')) ?>"
+                            placeholder="<?= $escaper->escapeHtmlAttr(__('Type your Postcode (just numbers)')) ?>">
                     </div>
                 </div>
                 <div class="actions-toolbar">
@@ -38,23 +48,23 @@
                             class="action simulate primary"
                             name="btn-simulate"
                             id="btn-simulate"
-                            title="<?= /* @noEscape */ __('Estimate shipping') ?>">
-                            <span><?= /* @noEscape */ __('Estimate shipping') ?></span>
+                            title="<?= $escaper->escapeHtmlAttr(__('Estimate shipping')) ?>">
+                            <span><?= $escaper->escapeHtml(__('Estimate shipping')) ?></span>
                         </button>
                         <a
-                            href="<?= /* @noEscape */ $block->getUrl($block->getBuscaCepUrl()) ?>"
+                            href="<?= $escaper->escapeUrl($block->getBuscaCepUrl()) ?>"
                             target="_blank"
-                            title="<?= /* @noEscape */ __('I do not know the postcode') ?>">
-                            <?= /* @noEscape */ __('I do not know the postcode') ?>
+                            rel="noopener noreferrer"
+                            title="<?= $escaper->escapeHtmlAttr(__('I do not know the postcode')) ?>">
+                            <?= $escaper->escapeHtml(__('I do not know the postcode')) ?>
                         </a>
                     </div>
                 </div>
             </fieldset>
-            <ul id="shipping-estimate-results"></ul>
+            <ul id="shipping-estimate-results" aria-live="polite"></ul>
         </div>
     </div>
-    <input
-        type="hidden"
-        name="simulate[actionUrl]"
-        value="<?= /* @noEscape */ $block->getUrl($block->getActionUrl()) ?>">
 </div>
+<script type="text/x-magento-init">
+    <?= /* @noEscape */ $block->getInitConfig() ?>
+</script>

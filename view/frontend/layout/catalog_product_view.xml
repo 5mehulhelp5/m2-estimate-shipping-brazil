@@ -6,10 +6,10 @@
  * @author      Rone Clay Brasil <roneclay@gmail.com>
  */
 -->
-<page>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
     <body>
         <referenceContainer name="product.info.form.content">
-            <block class="Fineweb\SimulateProductShipping\Block\Product\View" name="product.info.shipping" as="shipping" template="product/view/simulate-shipping.phtml" after="product.info.addtocart" />
+            <block class="Fineweb\SimulateProductShipping\Block\Product\View" name="product.info.shipping" as="shipping" template="Fineweb_SimulateProductShipping::product/view/simulate-shipping.phtml" after="product.info.addtocart" />
         </referenceContainer>
     </body>
 </page>

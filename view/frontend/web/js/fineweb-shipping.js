@@ -1,84 +1,137 @@
 define([
-    "jquery"
-], function($) {
-    "use strict";
+    'jquery',
+    'mage/translate'
+], function ($, $t) {
+    'use strict';
 
-    const maskPostcode = (postcode, event) => {
-        return formataCampo(postcode, '00000000', event);
-    }
+    const POSTCODE_LENGTH = 8;
 
-    const formataCampo = (campo, Mascara, evento) => {
-        let boleanoMascara,
-            Digitato = evento.keyCode,
-            exp = /\:|\-|\.|\/|\(|\)| /g,
-            campoSoNumeros = campo.val().toString().replace(exp, ""),
-            posicaoCampo = 0,
-            NovoValorCampo = "",
-            TamanhoMascara = campoSoNumeros.length;
+    /**
+     * Keep only the digits of a value.
+     *
+     * @param {String} value
+     * @returns {String}
+     */
+    const onlyDigits = (value) => String(value).replace(/\D/g, '');
 
-        if (Digitato != 8) {
-            for (let i = 0; i <= TamanhoMascara; i++) {
-                boleanoMascara = ((Mascara.charAt(i) == ":") || (Mascara.charAt(i) == "-") || (Mascara.charAt(i) == ".") || (Mascara.charAt(i) == "/"))
-                boleanoMascara = boleanoMascara || ((Mascara.charAt(i) == "(") ||
-                    (Mascara.charAt(i) == ")") || (Mascara.charAt(i) == " "))
-                if (boleanoMascara) {
-                    NovoValorCampo += Mascara.charAt(i);
-                    TamanhoMascara++;
-                } else {
-                    NovoValorCampo += campoSoNumeros.charAt(posicaoCampo);
-                    posicaoCampo++;
-                }
-            }
-            campo.val(NovoValorCampo);
-            return true;
-        } else {
-            return true;
-        }
-    }
+    /**
+     * Format digits as a Brazilian postcode (CEP): 00000-000.
+     *
+     * @param {String} value
+     * @returns {String}
+     */
+    const maskPostcode = (value) => {
+        const digits = onlyDigits(value).slice(0, POSTCODE_LENGTH);
 
-    const getShippingMethods = (postcode) => {
-        let actionUrl = $('[name="simulate[actionUrl]"]').val(),
-            productPost = $('#product_addtocart_form').serialize(),
-            s = $("#shipping-estimate-results"),
-            t = postcode,
-            n = t.val();
-        s.slideUp(), void 0 !== n && $.isNumeric(n) && 8 === n.length ? (t.removeClass("has-error"), $.ajax({
-            type: "post",
-            url: actionUrl,
-            data: productPost,
-            dataType: 'json',
-            showLoader: !0,
-            success: function(i) {
-                let t = i;
-                t.error ? s.html("<li>" + t.error.message + "</li>").slideDown() : $.map(t, function(i, t) {
-                    let n = $('<li><span class="title">' + t + "</span></li>");
-                    if (i.length > 0) {
-                        var a = $("<ul></ul>");
-                        $.map(i, function(s) {
-                            let i = $('<li><span class="label">' + s.title + " - </span>" + s.price + "</li>");
-                            "" != s.message && i.append("- " + s.message), a.append(i)
-                        })
+        return digits.length > 5 ? digits.slice(0, 5) + '-' + digits.slice(5) : digits;
+    };
+
+    /**
+     * Fineweb_SimulateProductShipping widget: estimates the shipping methods for the product being viewed.
+     *
+     * @param {Object} config
+     * @param {String} config.actionUrl
+     * @param {HTMLElement} element
+     */
+    return function (config, element) {
+        const $container = $(element),
+            $postcode = $container.find('input[name="simulate[postcode]"]'),
+            $button = $container.find('#btn-simulate'),
+            $results = $container.find('#shipping-estimate-results');
+
+        /**
+         * Replace the results with a single message.
+         *
+         * @param {String} message
+         */
+        const showError = (message) => {
+            $results.empty().append($('<li class="message error"></li>').text(message)).slideDown();
+        };
+
+        /**
+         * Render every carrier with its methods. All data is inserted as text, never as markup.
+         *
+         * @param {Object} carriers - Methods grouped by carrier title
+         */
+        const showCarriers = (carriers) => {
+            $results.empty();
+
+            $.each(carriers, (carrierTitle, methods) => {
+                const $methods = $('<ul></ul>');
+
+                $.each(methods, (index, method) => {
+                    const $item = $('<li></li>')
+                        .append($('<span class="label"></span>').text(method.title + ' - '))
+                        .append(document.createTextNode(method.price));
+
+                    if (method.message) {
+                        $item.append(document.createTextNode(' - ' + method.message));
                     }
-                    n.append(a), s.html(n).slideDown()
-                })
+
+                    $methods.append($item);
+                });
+
+                $results.append(
+                    $('<li></li>').append($('<span class="title"></span>').text(carrierTitle)).append($methods)
+                );
+            });
+
+            $results.slideDown();
+        };
+
+        /**
+         * Ask the server for the shipping methods of the product form and the typed postcode.
+         */
+        const estimate = () => {
+            const digits = onlyDigits($postcode.val());
+
+            $results.slideUp();
+
+            if (digits.length !== POSTCODE_LENGTH) {
+                $postcode.addClass('has-error').trigger('focus');
+                showError($t('Please enter a valid postcode (8 digits).'));
+
+                return;
             }
-        })) : t.focus().addClass("has-error")
-    }
 
-    $(document).ready(function () {
-        let shippingForm = $('.simulate-container'),
-            btnCalculate = $('#btn-simulate'),
-            postcode = $('input[name="simulate[postcode]"]');
+            $postcode.removeClass('has-error');
 
-        postcode.attr('maxlength', '8');
-        postcode.keypress(function(e) {
-            if (e.which != 8 && e.which != 0 && (e.which < 48 || e.which > 57))
-                return false;
-            maskPostcode($(this), e);
+            const formData = $('#product_addtocart_form').serializeArray()
+                .filter((field) => field.name !== 'simulate[postcode]');
+
+            formData.push({name: 'simulate[postcode]', value: digits});
+
+            $.ajax({
+                type: 'post',
+                url: config.actionUrl,
+                data: $.param(formData),
+                dataType: 'json',
+                showLoader: true
+            }).done((response) => {
+                if (response.error) {
+                    showError(response.error.message);
+                } else {
+                    showCarriers(response);
+                }
+            }).fail((xhr) => {
+                const error = xhr.responseJSON && xhr.responseJSON.error;
+
+                showError(error ? error.message : $t('We could not estimate shipping right now. Please try again.'));
+            });
+        };
+
+        $postcode.on('input', function () {
+            $(this).val(maskPostcode($(this).val()));
         });
 
-        btnCalculate.on("click", function () {
-            getShippingMethods(postcode)
-        })
-    })
+        // The field lives inside the add-to-cart form: Enter must estimate shipping, not add the product
+        $postcode.on('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                estimate();
+            }
+        });
+
+        $button.on('click', estimate);
+    };
 });

@@ -19,50 +19,67 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+declare(strict_types=1);
+
 namespace Fineweb\SimulateProductShipping\Block\Product;
 
-use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\Framework\Serialize\Serializer\JsonHexTag;
 use Magento\Framework\View\Element\Template;
-use Magento\Framework\View\Element\Template\Context;
 
 /**
- * Class View
- *
- * Fineweb\SimulateProductShipping\Block\Product
+ * Block that renders the postcode form used to estimate shipping on the product page.
  */
 class View extends Template
 {
-    const FINE_ACTION_URL = 'fineweb/simulate/index';
-    const BUSCA_CEP_URL = 'http://www.buscacep.correios.com.br/sistemas/buscacep/BuscaCepEndereco.cfm';
+    public const FINE_ACTION_URL = 'fineweb/simulate/index';
+    public const BUSCA_CEP_URL = 'https://buscacepinter.correios.com.br/app/endereco/index.php';
 
     /**
-     * Constructor
-     *
-     * @param Context  $context
-     * @param array $data
+     * @param Template\Context $context
+     * @param JsonHexTag $jsonHexTag
+     * @param mixed[] $data
      */
     public function __construct(
-        Context $context,
+        Template\Context $context,
+        private readonly JsonHexTag $jsonHexTag,
         array $data = []
     ) {
         parent::__construct($context, $data);
     }
 
     /**
+     * Get the controller route that calculates the estimate (relative to the store base URL)
+     *
      * @return string
-     * @throws NoSuchEntityException
      */
-    public function getActionUrl()
+    public function getActionUrl(): string
     {
-        return $this::FINE_ACTION_URL;
+        return self::FINE_ACTION_URL;
     }
 
     /**
+     * Get the absolute URL of the Correios postcode lookup
+     *
      * @return string
-     * @throws NoSuchEntityException
      */
-    public function getBuscaCepUrl()
+    public function getBuscaCepUrl(): string
     {
-        return $this::BUSCA_CEP_URL;
+        return self::BUSCA_CEP_URL;
+    }
+
+    /**
+     * Serialize the widget configuration for the `text/x-magento-init` script, safe inside a `<script>` tag
+     *
+     * @return string
+     */
+    public function getInitConfig(): string
+    {
+        return (string) $this->jsonHexTag->serialize([
+            '.simulate-container' => [
+                'Fineweb_SimulateProductShipping/js/fineweb-shipping' => [
+                    'actionUrl' => $this->getUrl($this->getActionUrl()),
+                ],
+            ],
+        ]);
     }
 }
