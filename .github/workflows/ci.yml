@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Original Magento packages, mirrored without authentication (no repo.magento.com keys needed)
+  MAGENTO_MIRROR: https://mirror.mage-os.org/
+
+jobs:
+  phpcs:
+    name: phpcs (Magento2 standard)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+      - run: composer config -g repositories.magento-mirror composer "$MAGENTO_MIRROR"
+      - run: composer update --no-interaction --no-progress --prefer-dist
+      - run: vendor/bin/phpcs
+
+  phpstan:
+    name: phpstan (level 9)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+      - run: composer config -g repositories.magento-mirror composer "$MAGENTO_MIRROR"
+      - run: composer update --no-interaction --no-progress --prefer-dist
+      - run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+
+  phpunit:
+    name: PHPUnit (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          coverage: none
+      - run: composer config -g repositories.magento-mirror composer "$MAGENTO_MIRROR"
+      - run: composer update --no-interaction --no-progress --prefer-dist
+      - run: vendor/bin/phpunit
