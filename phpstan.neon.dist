@@ -2,7 +2,9 @@ parameters:
     level: 9
     phpVersion: 80200
     paths:
-        - Block
+        - Api
         - Controller
+        - Model
+        - ViewModel
         - Test
         - registration.php
