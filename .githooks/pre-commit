@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Fast checks before every commit. They run on the whole module, not only on the staged files.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+step() { printf '\n==> %s\n' "$1"; }
+
+step "Blacklist (debug leftovers, forbidden constructs)"
+php dev/ci/blacklist.php
+
+step "ESLint"
+npx --no-install eslint --max-warnings 0 view
+
+step "PHPCS (Magento2, warnings block)"
+vendor/bin/phpcs
+
+step "PHPMD (Magento rule set)"
+composer --no-interaction run-script phpmd
+
+echo
+echo "pre-commit: OK"

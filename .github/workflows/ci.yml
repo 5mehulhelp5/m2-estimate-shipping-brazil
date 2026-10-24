@@ -17,8 +17,43 @@ env:
   MAGENTO_MIRROR: https://mirror.mage-os.org/
 
 jobs:
+  blacklist:
+    name: Blacklist (debug leftovers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - run: php dev/ci/blacklist.php
+
+  composer-validate:
+    name: composer validate --strict
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+      - run: composer validate --strict
+
+  conventions:
+    name: Conventions (tests exist, multi-store)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - run: php dev/ci/check-tests-exist.php
+      - run: php dev/ci/check-scope-config.php
+
   phpcs:
-    name: phpcs (Magento2 standard)
+    name: phpcs (Magento2 standard, warnings block)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,6 +65,20 @@ jobs:
       - run: composer config -g repositories.magento-mirror composer "$MAGENTO_MIRROR"
       - run: composer update --no-interaction --no-progress --prefer-dist
       - run: vendor/bin/phpcs
+
+  phpmd:
+    name: phpmd (Magento rule set)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+      - run: composer config -g repositories.magento-mirror composer "$MAGENTO_MIRROR"
+      - run: composer update --no-interaction --no-progress --prefer-dist
+      - run: composer run-script phpmd
 
   phpstan:
     name: phpstan (level 9)
@@ -46,7 +95,7 @@ jobs:
       - run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
 
   phpunit:
-    name: PHPUnit (PHP ${{ matrix.php }})
+    name: PHPUnit + coverage gate (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -58,7 +107,21 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           tools: composer:v2
-          coverage: none
+          coverage: xdebug
       - run: composer config -g repositories.magento-mirror composer "$MAGENTO_MIRROR"
       - run: composer update --no-interaction --no-progress --prefer-dist
-      - run: vendor/bin/phpunit
+      - run: php -d xdebug.mode=coverage vendor/bin/phpunit --coverage-clover build/clover.xml
+      - name: Coverage per file (fails below 70%)
+        run: php dev/ci/check-coverage.php build/clover.xml 70
+
+  eslint:
+    name: ESLint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx eslint --max-warnings 0 view

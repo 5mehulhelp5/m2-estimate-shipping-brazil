@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Heavier checks before a push: static analysis, conventions, unit tests with the coverage gate.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+step() { printf '\n==> %s\n' "$1"; }
+
+step "PHPStan (level 9)"
+vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+
+step "Every production file has a unit test"
+php dev/ci/check-tests-exist.php
+
+step "Multi-store: scopeConfig calls pass their scope"
+php dev/ci/check-scope-config.php
+
+step "PHPUnit with coverage (gate: 70% per file)"
+if ! php -m | grep -qiE '^(xdebug|pcov)$'; then
+    echo "No code coverage driver found: install xdebug (or pcov), or push with --no-verify at your own risk." >&2
+    exit 1
+fi
+composer --no-interaction run-script coverage
+
+echo
+echo "pre-push: OK"
