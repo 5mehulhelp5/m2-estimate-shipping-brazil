@@ -19,140 +19,217 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+declare(strict_types=1);
+
 namespace Fineweb\SimulateProductShipping\Controller\Simulate;
 
 use Magento\Catalog\Api\ProductRepositoryInterface;
-use Magento\Framework\App\Action\Action;
-use Magento\Framework\App\Action\Context;
+use Magento\Catalog\Model\Product;
+use Magento\Framework\App\Action\HttpPostActionInterface;
 use Magento\Framework\App\RequestInterface;
+use Magento\Framework\Controller\Result\Json;
+use Magento\Framework\Controller\ResultFactory;
 use Magento\Framework\Controller\ResultInterface;
+use Magento\Framework\DataObject;
 use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\Json\Helper\Data;
-use Magento\Framework\Pricing\Helper\Data as DataAlias;
-use Magento\Framework\View\Result\PageFactory;
+use Magento\Framework\Phrase;
+use Magento\Framework\Pricing\PriceCurrencyInterface;
 use Magento\Quote\Model\QuoteFactory;
+use Magento\Quote\Model\Quote\TotalsCollector;
+use Magento\Store\Model\StoreManagerInterface;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
 /**
- * Class Index
+ * Estimates the shipping methods available for a product and a Brazilian postcode (CEP).
  *
- * Fineweb\SimulateProductShipping\Controller\Simulate
+ * Responds with a JSON object grouped by carrier title, or with {"error": {"message": "..."}}.
  */
-class Index extends Action
+class Index implements HttpPostActionInterface
 {
-    protected $resultPageFactory;
-    protected $jsonHelper;
-    protected $request;
-    protected $product_repository;
-    protected $quote;
-    protected $pricingHelper;
-    protected $logger;
+    private const COUNTRY_ID = 'BR';
+    private const POSTCODE_LENGTH = 8;
 
     /**
-     * Constructor
-     *
-     * @param Context $context
-     * @param PageFactory $resultPageFactory
-     * @param Data $jsonHelper
-     * @param LoggerInterface $logger
+     * Product form fields forwarded to the quote as the buy request (the same ones add-to-cart posts).
+     */
+    private const BUY_REQUEST_KEYS = [
+        'super_attribute',
+        'super_group',
+        'bundle_option',
+        'bundle_option_qty',
+        'options',
+    ];
+
+    /**
      * @param RequestInterface $request
-     * @param ProductRepositoryInterface $product_repository
-     * @param QuoteFactory $quote
-     * @param DataAlias $pricingHelper
+     * @param ResultFactory $resultFactory
+     * @param ProductRepositoryInterface $productRepository
+     * @param QuoteFactory $quoteFactory
+     * @param TotalsCollector $totalsCollector
+     * @param StoreManagerInterface $storeManager
+     * @param PriceCurrencyInterface $priceCurrency
+     * @param LoggerInterface $logger
      */
     public function __construct(
-        Context $context,
-        PageFactory $resultPageFactory,
-        Data $jsonHelper,
-        LoggerInterface $logger,
-        RequestInterface $request,
-        ProductRepositoryInterface $product_repository,
-        QuoteFactory $quote,
-        DataAlias $pricingHelper
+        private readonly RequestInterface $request,
+        private readonly ResultFactory $resultFactory,
+        private readonly ProductRepositoryInterface $productRepository,
+        private readonly QuoteFactory $quoteFactory,
+        private readonly TotalsCollector $totalsCollector,
+        private readonly StoreManagerInterface $storeManager,
+        private readonly PriceCurrencyInterface $priceCurrency,
+        private readonly LoggerInterface $logger
     ) {
-        $this->resultPageFactory = $resultPageFactory;
-        $this->jsonHelper = $jsonHelper;
-        $this->logger = $logger;
-        $this->request = $request;
-        $this->product_repository = $product_repository;
-        $this->quote = $quote;
-        $this->pricingHelper = $pricingHelper;
-        parent::__construct($context);
     }
 
     /**
-     * Execute view action
+     * Estimate the shipping methods for the posted product and postcode
      *
      * @return ResultInterface
      */
-    public function execute()
+    public function execute(): ResultInterface
     {
-        $_params = $this->request->getPostValue();
-        $qty       = $_params['qty'];
-        $response = [];
+        $postcode = $this->getPostcode();
+        if ($postcode === null) {
+            return $this->error(__('Please enter a valid postcode (8 digits).'), 400);
+        }
 
         try {
-            $_product = $this->product_repository->getById($_params['product']);
-            $quote = $this->quote->create();
-            $options = new \Magento\Framework\DataObject();
-            $options->setProduct($_product->getId());
-            $options->setQty($qty);
-
-            if (!strcmp($_product->getTypeId(), 'configurable')) {
-                $superAttribute = $this->getRequest()->getParam('super_attribute');
-
-                $options->setSuperAttribute($superAttribute);
-            } elseif (!strcmp($_product->getTypeId(), 'bundle')) {
-                $bundleOption    = $this->getRequest()->getParam('bundle_option');
-                $bundleOptionQty = $this->getRequest()->getParam('bundle_option_qty');
-
-                $options->setBundleOption($bundleOption);
-                $options->setBundleOptionQty($bundleOptionQty);
-            }
-
-            $quote->addProduct($_product, $options);
-            $quote->getShippingAddress()->setCountryId('BR');
-            $quote->getShippingAddress()->setPostcode($_params['simulate']['postcode']);
-            $quote->getShippingAddress()->setCollectShippingRates(true);
-            $quote->getShippingAddress()->collectShippingRates();
-            $rates = $quote->getShippingAddress()->getShippingRatesCollection();
-
-            if (count($rates)>0) {
-                $shipping_methods = [];
-
-                foreach ($rates as $rate) {
-                    $_message = !$rate->getErrorMessage() ? "" : $rate->getErrorMessage();
-                    $shipping_methods[$rate->getCarrierTitle()][] = [
-                        'title' => $rate->getMethodTitle(),
-                        'price' => $this->pricingHelper->currency($rate->getPrice()),
-                        'message' => $_message,
-                    ];
-                }
-
-                $response = $shipping_methods;
-            } else {
-                $response['error']['message'] = __('There is no shipping method available at this time.');
-            }
-
-            return $this->jsonResponse($response);
+            return $this->json($this->estimate($postcode));
         } catch (LocalizedException $e) {
-            return $this->jsonResponse($e->getMessage());
-        } catch (\Exception $e) {
+            return $this->error($e->getMessage(), 400);
+        } catch (Throwable $e) {
             $this->logger->critical($e);
-            return $this->jsonResponse($e->getMessage());
+
+            return $this->error(__('We could not estimate shipping right now. Please try again.'), 500);
         }
     }
 
     /**
-     * Create json response
+     * Build the estimate for the posted product
      *
-     * @param string $response
-     * @return ResultInterface
+     * @param string $postcode
+     * @return array<string, mixed>
+     * @throws LocalizedException
      */
-    public function jsonResponse($response = '')
+    private function estimate(string $postcode): array
     {
-        return $this->getResponse()->representJson(
-            $this->jsonHelper->jsonEncode($response)
-        );
+        $store = $this->storeManager->getStore();
+        $product = $this->productRepository->getById($this->getProductId(), false, $store->getId());
+        if (!$product instanceof Product) {
+            throw new LocalizedException(__('The product could not be loaded.'));
+        }
+
+        $quote = $this->quoteFactory->create();
+        $quote->setStoreId((int) $store->getId());
+
+        $item = $quote->addProduct($product, $this->getBuyRequest());
+        if (is_string($item)) {
+            throw new LocalizedException(__($item));
+        }
+
+        $address = $quote->getShippingAddress();
+        $address->setCountryId(self::COUNTRY_ID);
+        $address->setPostcode($postcode);
+        $address->setCollectShippingRates(true);
+        $this->totalsCollector->collectAddressTotals($quote, $address);
+
+        $methods = [];
+        foreach ($address->getGroupedAllShippingRates() as $rates) {
+            foreach ($rates as $rate) {
+                $methods[(string) $rate->getCarrierTitle()][] = [
+                    'title' => (string) $rate->getMethodTitle(),
+                    'price' => $this->priceCurrency->convertAndFormat(
+                        (float) $rate->getPrice(),
+                        false,
+                        PriceCurrencyInterface::DEFAULT_PRECISION,
+                        $store->getId()
+                    ),
+                    'message' => (string) $rate->getErrorMessage(),
+                ];
+            }
+        }
+
+        if ($methods === []) {
+            return ['error' => ['message' => (string) __('There is no shipping method available at this time.')]];
+        }
+
+        return $methods;
+    }
+
+    /**
+     * Read the postcode from the form, keeping only its digits
+     *
+     * @return string|null Null when it does not have exactly 8 digits
+     */
+    private function getPostcode(): ?string
+    {
+        $simulate = $this->request->getParam('simulate');
+        $postcode = is_array($simulate) ? $simulate['postcode'] ?? '' : '';
+        $digits = preg_replace('/\D/', '', is_string($postcode) ? $postcode : '');
+
+        return strlen((string) $digits) === self::POSTCODE_LENGTH ? $digits : null;
+    }
+
+    /**
+     * Read the posted product id
+     *
+     * @return int
+     */
+    private function getProductId(): int
+    {
+        $productId = $this->request->getParam('product');
+
+        return is_numeric($productId) ? (int) $productId : 0;
+    }
+
+    /**
+     * Build the buy request (quantity and product options) from the posted product form
+     *
+     * @return DataObject
+     */
+    private function getBuyRequest(): DataObject
+    {
+        $qty = $this->request->getParam('qty', 1);
+        $qty = is_numeric($qty) ? (float) $qty : 0.0;
+        $buyRequest = new DataObject(['product' => $this->getProductId(), 'qty' => $qty > 0 ? $qty : 1.0]);
+        foreach (self::BUY_REQUEST_KEYS as $key) {
+            $value = $this->request->getParam($key);
+            if ($value !== null) {
+                $buyRequest->setData($key, $value);
+            }
+        }
+
+        return $buyRequest;
+    }
+
+    /**
+     * Build a JSON error response
+     *
+     * @param Phrase|string $message
+     * @param int $httpCode
+     * @return Json
+     */
+    private function error(Phrase|string $message, int $httpCode): Json
+    {
+        return $this->json(['error' => ['message' => (string) $message]], $httpCode);
+    }
+
+    /**
+     * Build a JSON response
+     *
+     * @param mixed[] $data
+     * @param int $httpCode
+     * @return Json
+     */
+    private function json(array $data, int $httpCode = 200): Json
+    {
+        /** @var Json $result */
+        $result = $this->resultFactory->create(ResultFactory::TYPE_JSON);
+        $result->setHttpResponseCode($httpCode);
+        $result->setData($data);
+
+        return $result;
     }
 }
