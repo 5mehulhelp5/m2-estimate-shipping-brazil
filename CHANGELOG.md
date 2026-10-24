@@ -19,6 +19,10 @@ now structured, tested and checked the way a Magento 2 module should be.
   `en_US.csv` was added) carry exactly the phrases the code uses.
 - The markup uses `data-role` / `data-action` hooks scoped to the widget element instead of fixed ids; CSS classes are BEM
   (`fineweb-shipping-estimate__*`).
+- **Upgrade note:** the markup hooks were renamed. A theme that styled or scripted the old ones must follow:
+  `.simulate-container` → `[data-role="fineweb-shipping-estimate"]`, `#postcode` → `[data-role="postcode"]`, `#btn-simulate` →
+  `[data-action="estimate-shipping"]`, `#shipping-estimate-results` → `[data-role="estimate-results"]`, and the result items
+  are now `.fineweb-shipping-estimate__carrier` / `__method`.
 
 ### Added
 
