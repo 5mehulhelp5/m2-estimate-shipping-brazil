@@ -1,6 +1,6 @@
 # Shipping Estimate on the Product Page (Brazil) for Magento 2
 
-[![CI](https://github.com/roneclay/m2-estimate-shipping-brazil/actions/workflows/ci.yml/badge.svg)](https://github.com/roneclay/m2-estimate-shipping-brazil/actions/workflows/ci.yml)
+[![CI](https://github.com/roni-clei-santos/m2-estimate-shipping-brazil/actions/workflows/ci.yml/badge.svg)](https://github.com/roni-clei-santos/m2-estimate-shipping-brazil/actions/workflows/ci.yml)
 
 Lets the shopper type a Brazilian postcode (**CEP**) on the product page and see **every shipping method** the store
 would offer for that product, with its price, before adding anything to the cart.
@@ -40,7 +40,7 @@ The destination country is fixed to Brazil. Other themes may need CSS adjustment
 The module is installed straight from this repository with Composer:
 
 ```bash
-composer config repositories.fineweb-simulate-product-shipping vcs https://github.com/roneclay/m2-estimate-shipping-brazil
+composer config repositories.fineweb-simulate-product-shipping vcs https://github.com/roni-clei-santos/m2-estimate-shipping-brazil
 composer require fineweb/module-simulateproductshipping:^1.0
 
 bin/magento module:enable Fineweb_SimulateProductShipping

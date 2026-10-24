@@ -11,17 +11,17 @@
         "brazil",
         "product-page"
     ],
-    "homepage": "https://github.com/roneclay/m2-estimate-shipping-brazil",
+    "homepage": "https://github.com/roni-clei-santos/m2-estimate-shipping-brazil",
     "authors": [
         {
             "name": "Roni Clei Santos",
-            "homepage": "https://github.com/roneclay",
+            "homepage": "https://github.com/roni-clei-santos",
             "role": "Developer"
         }
     ],
     "support": {
-        "issues": "https://github.com/roneclay/m2-estimate-shipping-brazil/issues",
-        "source": "https://github.com/roneclay/m2-estimate-shipping-brazil"
+        "issues": "https://github.com/roni-clei-santos/m2-estimate-shipping-brazil/issues",
+        "source": "https://github.com/roni-clei-santos/m2-estimate-shipping-brazil"
     },
     "require": {
         "php": "~8.2.0||~8.3.0",

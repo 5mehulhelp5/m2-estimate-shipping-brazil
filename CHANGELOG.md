@@ -47,4 +47,4 @@ First tagged release. It modernizes the module first published in 2020 for Magen
   that form instead of estimating.
 - The "I do not know the postcode" link used plain HTTP (it only worked through a redirect) and had no `rel="noopener"`.
 
-[1.0.0]: https://github.com/roneclay/m2-estimate-shipping-brazil/releases/tag/v1.0.0
+[1.0.0]: https://github.com/roni-clei-santos/m2-estimate-shipping-brazil/releases/tag/v1.0.0
