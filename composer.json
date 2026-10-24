@@ -96,10 +96,12 @@
             "@blacklist",
             "@phpcs",
             "@phpmd",
+            "@phpcpd",
             "@phpstan",
             "@check-tests-exist",
             "@check-scope",
             "@coverage"
-        ]
+        ],
+        "phpcpd": "bash dev/ci/phpcpd.sh Api Controller Model ViewModel"
     }
 }

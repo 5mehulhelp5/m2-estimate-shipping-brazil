@@ -1,25 +1,36 @@
 #!/usr/bin/env bash
-# Heavier checks before a push: static analysis, conventions, unit tests with the coverage gate.
+# Heavier checks before a push: static analysis, conventions, unit tests with the coverage gate. Same split as pre-commit:
+# PHP in the Docker container (skipped with a warning when it is not running), JavaScript on the host.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
+IC=dev/ci/in-container.sh
+rm -f build/.hook-skipped
 step() { printf '\n==> %s\n' "$1"; }
 
+step "Sync the checkout into the container"
+$IC --sync
+export IN_CONTAINER_SYNCED=1
+
+step "composer validate --strict"
+$IC composer validate --strict
+
 step "PHPStan (level 9)"
-vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+$IC vendor/bin/phpstan analyse --memory-limit=1G --no-progress
 
 step "Every production file has a unit test"
-php dev/ci/check-tests-exist.php
+$IC php dev/ci/check-tests-exist.php
 
 step "Multi-store: scopeConfig calls pass their scope"
-php dev/ci/check-scope-config.php
+$IC php dev/ci/check-scope-config.php
 
 step "PHPUnit with coverage (gate: 70% per file)"
-if ! php -m | grep -qiE '^(xdebug|pcov)$'; then
-    echo "No code coverage driver found: install xdebug (or pcov), or push with --no-verify at your own risk." >&2
-    exit 1
-fi
-composer --no-interaction run-script coverage
+$IC php -d xdebug.mode=coverage vendor/bin/phpunit --coverage-clover build/clover.xml
+$IC php dev/ci/check-coverage.php build/clover.xml 70
 
 echo
-echo "pre-push: OK"
+if [ -f build/.hook-skipped ]; then
+    echo "pre-push: PASSED, BUT $(grep -vc '^--sync$' build/.hook-skipped) PHP check(s) were SKIPPED (container not running)." >&2
+else
+    echo "pre-push: OK"
+fi
