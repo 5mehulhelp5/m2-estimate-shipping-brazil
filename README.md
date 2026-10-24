@@ -88,11 +88,14 @@ They were captured by the end-to-end tests, so they show what the module renders
 ## Development
 
 ```bash
-# original Magento packages from a public mirror, no repo.magento.com keys needed
-composer config -g repositories.magento-mirror composer https://mirror.mage-os.org/
-composer install
-composer check        # phpcs + phpstan + PHPUnit
+./setup-dev.sh        # composer install, npm install and the git hooks (core.hooksPath = .githooks)
+composer check        # blacklist, phpcs (warnings block), phpmd, phpstan level 9, tests-exist, multi-store, coverage
+npm run lint          # ESLint 10 on the module JavaScript
 ```
+
+The dependencies come from a public mirror of the original Magento packages, no `repo.magento.com` keys needed
+(`composer config -g repositories.magento-mirror composer https://mirror.mage-os.org/`). The same checks run in CI on PHP 8.2
+and 8.3; PHPUnit must keep every file at 70% line coverage or more. `CLAUDE.md` describes the structure and the rules.
 
 The `e2e/` folder has the Playwright tests that run against a store with the module installed; see `e2e/README.md`.
 

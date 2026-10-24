@@ -5,6 +5,34 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-10-24
+
+Quality release: no change in what the storefront shows (the end-to-end tests pass with the same prices), but the module is
+now structured, tested and checked the way a Magento 2 module should be.
+
+### Changed
+
+- The estimate logic moved from the controller into `Model/ShippingEstimator`, behind `Api/ShippingEstimatorInterface`
+  (bound in `etc/di.xml`). The controller only reads and validates the request, calls the service and returns the JSON.
+- The block that fed the template is a **ViewModel** passed as a layout argument.
+- A shipping method is described with the phrases `%1 - %2` and `%1 - %2 - %3` instead of glued pieces; the CSV files (an
+  `en_US.csv` was added) carry exactly the phrases the code uses.
+- The markup uses `data-role` / `data-action` hooks scoped to the widget element instead of fixed ids; CSS classes are BEM
+  (`fineweb-shipping-estimate__*`).
+
+### Added
+
+- CI jobs: blacklist, `composer validate --strict`, tests exist, multi-store scope, phpcs with warnings blocking, phpmd (Magento
+  rule set), phpstan level 9, PHPUnit with a 70% per-file coverage gate on PHP 8.2 and 8.3 and ESLint 10.
+- Local git hooks (`.githooks`, `setup-dev.sh`), the review guide (`.github/copilot-instructions.md`), a pull request
+  template and `CLAUDE.md`.
+- Unit tests for the service and the ViewModel (32 tests, 100% coverage of every file).
+
+### Fixed
+
+- The Composer package no longer carries the tests, the CI files and the tooling (`export-ignore`).
+- The "The product could not be loaded." message is translated.
+
 ## [1.0.0] - 2026-10-24
 
 First tagged release. It modernizes the module first published in 2020 for Magento 2.4.7+ and PHP 8.2/8.3.
@@ -47,4 +75,5 @@ First tagged release. It modernizes the module first published in 2020 for Magen
   that form instead of estimating.
 - The "I do not know the postcode" link used plain HTTP (it only worked through a redirect) and had no `rel="noopener"`.
 
+[1.1.0]: https://github.com/roni-clei-santos/m2-estimate-shipping-brazil/releases/tag/v1.1.0
 [1.0.0]: https://github.com/roni-clei-santos/m2-estimate-shipping-brazil/releases/tag/v1.0.0
