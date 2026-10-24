@@ -10,7 +10,7 @@ const FLORIANOPOLIS = '88010-400';
 const SAO_PAULO = '01310-100';
 
 const price = (entry) => parseBRL(entry.price);
-const widget = (page) => page.locator('.simulate-container');
+const widget = (page) => page.locator('[data-role="fineweb-shipping-estimate"]');
 
 test.describe('simple product', () => {
   const URL = '/joust-duffle-bag.html';
