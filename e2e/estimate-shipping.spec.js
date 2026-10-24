@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { expect, test } from '@playwright/test';
 
 import {
@@ -131,5 +134,34 @@ test.describe('endpoint', () => {
 
     expect(typeof body).toBe('object');
     expect(typeof body.error?.message).toBe('string');
+  });
+});
+
+const PRODUCT_PAGES = {
+  simple: '/joust-duffle-bag.html',
+  configurable: '/apollo-running-short.html',
+  bundle: '/sprite-yoga-companion-kit.html',
+};
+
+test.describe('JavaScript', () => {
+  for (const [type, url] of Object.entries(PRODUCT_PAGES)) {
+    test(`no JavaScript error on the ${type} product page`, async ({ page }) => {
+      const errors = collectPageErrors(page);
+      await openProduct(page, url);
+      await estimate(page, FLORIANOPOLIS); // exercises the widget, whatever the answer is
+      await expect(results(page).locator('li').first()).toBeVisible();
+
+      expect(errors).toEqual([]);
+    });
+  }
+
+  test('the browser gets the JavaScript of this checkout, not a cached or stale copy', async ({ page }) => {
+    const served = page.waitForResponse((response) => response.url().endsWith('/Fineweb_SimulateProductShipping/js/fineweb-shipping.js'));
+
+    await page.goto(PRODUCT_PAGES.simple, { waitUntil: 'networkidle' });
+
+    expect(await (await served).text()).toBe(
+      readFileSync(resolve(process.cwd(), 'view/frontend/web/js/fineweb-shipping.js'), 'utf8'),
+    );
   });
 });
