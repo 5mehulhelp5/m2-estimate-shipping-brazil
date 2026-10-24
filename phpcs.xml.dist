@@ -5,12 +5,22 @@
     <arg name="colors"/>
     <arg name="extensions" value="php,phtml"/>
     <arg name="cache" value=".phpcs-cache"/>
+    <!-- Every warning counts, including the low severity ones the default (5) hides -->
+    <arg name="warning-severity" value="1"/>
     <arg value="sp"/>
 
-    <rule ref="Magento2"/>
+    <rule ref="Magento2">
+        <!-- BEM names elements with a double underscore (block__element), which this sniff forbids -->
+        <exclude name="Magento2.Less.ClassNaming.NotAllowedSymbol"/>
+    </rule>
 
     <file>.</file>
     <exclude-pattern>*/vendor/*</exclude-pattern>
     <exclude-pattern>*/node_modules/*</exclude-pattern>
     <exclude-pattern>*/e2e/*</exclude-pattern>
+    <!-- Vendored Magento rules and command line tooling, not module code -->
+    <exclude-pattern>*/dev/phpmd/*</exclude-pattern>
+    <exclude-pattern>*/dev/ci/*</exclude-pattern>
+    <exclude-pattern>*/build/*</exclude-pattern>
+    <exclude-pattern>*/test-results/*</exclude-pattern>
 </ruleset>
