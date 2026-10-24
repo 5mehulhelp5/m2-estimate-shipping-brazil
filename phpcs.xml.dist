@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<ruleset name="Fineweb_SimulateProductShipping">
+    <description>Magento 2 coding standard for Fineweb_SimulateProductShipping</description>
+    <arg name="basepath" value="."/>
+    <arg name="colors"/>
+    <arg name="extensions" value="php,phtml"/>
+    <arg name="cache" value=".phpcs-cache"/>
+    <arg value="sp"/>
+
+    <rule ref="Magento2"/>
+
+    <file>.</file>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/e2e/*</exclude-pattern>
+</ruleset>

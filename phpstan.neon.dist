@@ -1,0 +1,8 @@
+parameters:
+    level: 9
+    phpVersion: 80200
+    paths:
+        - Block
+        - Controller
+        - Test
+        - registration.php
