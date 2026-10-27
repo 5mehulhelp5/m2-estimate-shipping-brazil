@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Development tooling only; nothing changes in the installed module.
+
+### Fixed
+
+- The git hooks no longer freeze when Docker Desktop is starting or stuck. `dev/ci/in-container.sh` checks the container with a
+  deadline (`QA_DOCKER_TIMEOUT`, 5 seconds by default) and, when Docker does not answer, skips the PHP checks with a warning, as
+  it already did when the container is stopped.
+
 ## [2.0.0] - 2026-10-24
 
 Quality release: what the shopper sees does not change (the end-to-end tests pass with the same hand-calculated values),
