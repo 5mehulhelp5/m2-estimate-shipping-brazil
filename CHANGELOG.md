@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Development tooling only; nothing changes in the installed module.
 
+### Changed
+
+- CI only: the workflow uses `actions/checkout@v5` and `actions/setup-node@v5`, which run on Node 24, instead of the v4 versions GitHub flags as Node 20 (deprecated).
+
 ### Fixed
 
 - The git hooks no longer freeze when Docker Desktop is starting or stuck. `dev/ci/in-container.sh` checks the container with a
